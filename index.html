@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Drone Archive + Modal Vertikal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    #modalMap, #modalVideo {
+      width: 100%;
+      height: 50vh;
+      border: none;
+    }
+
+    .modal-dialog {
+      margin: 0;
+      max-width: 100%;
+    }
+
+    .modal-content {
+      height: 100vh;
+      border-radius: 0;
+    }
+
+    .modal-body {
+      padding: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    @media (max-width: 768px) {
+      #modalMap, #modalVideo {
+        height: 50vh;
+      }
+    }
+
+    .modal-footer {
+      border-top: 1px solid #ccc;
+      padding: 0.5rem;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container py-4">
+  <h3>Daftar Lokasi Pengambilan Video Drone</h3>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Divisi</th>
+        <th>Nama Lokasi</th>
+        <th>Video</th>
+      </tr>
+    </thead>
+    <tbody id="flightTableBody"></tbody>
+  </table>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="flightModal" tabindex="-1">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-body">
+        <iframe id="modalVideo" allow="autoplay" allowfullscreen></iframe>
+        <div id="modalMap"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kembali ke Daftar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Script -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-omnivore/leaflet-omnivore.min.js"></script>
+
+<script>
+  const flights = [
+    {
+      name: "Divisi I Tegar Mulai dari Blok B1 - C1 - Suram - B1",
+      videoId: "1hrvOlFHqEw8laEa83WxvpPXc7_mOGFNA",
+      kml: "Jun-4th-2025-10-56AM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi I Tegar Mulai dari Blok A0 - Suram - A2 - A0",
+      videoId: "1ZvnwRPZmL9ZcC1pudtel2gXpFbHMxPFh",
+      kml: "Jun-4th-2025-11-43AM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi I Tegar Mulai Dari Bibitan dan Barak Karyawan Div I",
+      videoId: "1a7gTP1kxgKKW2h0I67l7N7R7sjhM9HLV",
+      kml: ""
+    },
+    {
+      name: "Divisi II Tegar Mulai Dari Blok B7 - Barak Karyawan Div II - Perbatasan masyarakat",
+      videoId: "1G9guUVvmVN1hKXIyXv8y0p0CMSn7mBio",
+      kml: "Jun-4th-2025-12-26PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi II Tegar Mulai Dari Blok C0 - B8 - C0 Perbatasan Hutan (Kawasan Hutan)",
+      videoId: "1umsG6jGOGI8btH8_dmuwSH3ZklQ3Z2rU",
+      kml: "Jun-4th-2025-01-26PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi II Tegar Mulai Dari Blok C0 - Perbatasan Kawasan Hutan",
+      videoId: "1nfxyQV2kblxv7zVfUEHOEEWt44GeLT_Y",
+      kml: "Jun-4th-2025-01-26PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi III Cucut Dari Blok Perumahan Karyawan - A1 - Perbatasan sungai - keliling ke A10",
+      videoId: "1EML9nEWlkrtKmUfkVcMXAmo4ixoSLjm7",
+      kml: "Jun-5th-2025-09-48AM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi III Cucut Areal Perumahan Karyawan",
+      videoId: "1mkxlBNjJ3Ry8zb4zdRuLxvZGRf387cbN",
+      kml: ""
+    },
+    {
+      name: "Divisi III Cucut Mulai dari Perumahan Karyawan - A4 - A5 -A6 (Melihat perbatasan dengan masyarakat)",
+      videoId: "1uWV6aWAXNDrPxsZVjzLAPDAPmONal3Kt",
+      kml: "Jun-4th-2025-03-23PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi III Cucut Mulai dari Blok A7 - Perumahan Karyawan",
+      videoId: "1fAuf_8L-wQmdkwIg5FSSO_qR_iZW9dlH",
+      kml: "Jun-5th-2025-09-48AM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi III Cucut Mulai dari Blok A13 (Pinggir Aspal) - A11 - A15",
+      videoId: "1wA57CB5FCMTAcDqaEf07kMWtCwgTX0HF",
+      kml: "Jun-5th-2025-10-22AM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi III Cucut Dekat simpang Nembok",
+      videoId: "1SGL0-SS7VT2XnyAr1Fr0XiamCULqIjqG",
+      kml: "Jun-5th-2025-10-22AM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi III Mekarsari Keliling Mulai Dari Blok C2 - C3 - C4 - C5 - C1",
+      videoId: "1NE7vi5yKFmMJBu9qEITPALWdinUHOvq0",
+      kml: "Jun-5th-2025-03-09PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi III Mekarsari Mulai Dari Blok C1 - B10 - B1 - B7 (Perbatasan dengan Kawasan Hutan Mekarsari)",
+      videoId: "1URZuTrItKs-UNk76VhLHy9Uk1vv69n6w",
+      kml: "Jun-9th-2025-12-52PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi IV Rangau Mulai dari Blok C6 - Perbatasan - Barak Karyawan",
+      videoId: "1-fJhyCZHhF0o8-zmahWnuhus8X6Hn7jN",
+      kml: "Jun-5th-2025-10-50AM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi IV Rangau Mulai dari Blok C8 (Post Masuk Rangau) - C9 - C2 - C3 (Perumahan Karyawan) - C3",
+      videoId: "1Uacsf-8NB-UEZFOHSWn5aBBifKpea2nU",
+      kml: "Jun-5th-2025-11-15AM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi IV Rangau Mulai dari Perumahan Karyawan (C3) - Arah C5 - C7 - C3",
+      videoId: "1ZFdekNtirK0xraMX1LMVpRO-G053Y00O",
+      kml: "Jun-5th-2025-11-15AM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi IV Rangau Mulai dari Menara Api (B4) - B1b - B3 - Menara Api)",
+      videoId: "1dE5zV-zSYIrI5lEN3iTurLkSDWicUJwb",
+      kml: "Jun-5th-2025-11-57AM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi V Rangau Mulai dari K13 (Menara Api) - A11 - Putar arah K8 - A18 - A25 - Putar K19 - A11",
+      videoId: "1l1MF3z9Cc8w3RZ9lJwv-HMTKPVoo1cDg",
+      kml: "Jun-5th-2025-12-51PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Divisi V Rangau - Lahan Perbatasan di Sebelah Timur Blok A",
+      videoId: "1uJUP_tzEQKAd5uAkbWZvOj1fwtBdKaVK",
+      kml: ""
+    },
+    {
+      name: "Divisi VI Rangau Mulai dari Menara  Api (K13) - Barak Div VII - K4 - Putar ke K7 - K20 - K4 - K3",
+      videoId: "1Ns-TfquPBF50xI8omAxcdf7e9unKRQxj",
+      kml: "Jun-5th-2025-01-09PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Areal Nembok Mulai dari Jembatan ambil sisi ke Kanan",
+      videoId: "1SWbqH1-obdZYLWBQm3uobV1lJwvQaKUm",
+      kml: "Jun-4th-2025-03-51PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Areal Nembok Mulai dari Jembatan Ambil Ke arah sisi kiri",
+      videoId: "1k_KMEtfBiXSjeDcMFPPaHMnujMeA8zfz",
+      kml: "Jun-4th-2025-03-51PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Areal Nembok Mulai dari Jembatan Ambil Jalan Tengah sampai ke ujung",
+      videoId: "13RT1wjm2zZqLiwD1nD6z4QyN1-MikiqA",
+      kml: "Jun-4th-2025-04-01PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Kantor Kebun Cucut Bagian I",
+      videoId: "1EjjB8Lt73FSJTOFsazMvhh2TIQuSrCIi",
+      kml: "Jun-4th-2025-02-41PM-Flight-Airdata.kml"
+    },
+    {
+      name: "Kantor Kebun Cucut Bagian II",
+      videoId: "1vqKCNr4LTzYEoi9gIzDLJK05GSgDFW1G",
+      kml: "Jun-4th-2025-02-41PM-Flight-Airdata.kml"
+    }
+  ];
+
+  const tableBody = document.getElementById("flightTableBody");
+  const modal = new bootstrap.Modal(document.getElementById("flightModal"));
+  let map, currentKml;
+
+  function extractDivisi(name) {
+      const divMatch = name.match(/Divisi [IVX]+(?: [A-Za-z]+)?/);
+      if (divMatch) return divMatch[0];
+    
+      if (name.includes("Areal Nembok")) return "Areal Nembok";
+      if (name.includes("Kantor Kebun Cucut")) return "Kantor Kebun Cucut";
+    
+      return "Lainnya";
+    }
+
+    
+    let rowspanMap = new Map();
+      let divisiList = [];
+      let lastDivisi = "";
+      let rowIndexMap = new Map();
+      
+      for (let i = 0; i < flights.length; i++) {
+        const divisi = extractDivisi(flights[i].name);
+        divisiList.push(divisi);
+      
+        if (divisi !== lastDivisi) {
+          rowIndexMap.set(divisi, i); // index pertama muncul
+          rowspanMap.set(divisi, 1);
+          lastDivisi = divisi;
+        } else {
+          rowspanMap.set(divisi, rowspanMap.get(divisi) + 1);
+          divisiList[i] = ""; // tandai untuk tidak dirender ulang
+        }
+      }
+
+    
+    for (let i = 0; i < flights.length; i++) {
+      const flight = flights[i];
+      const divisi = extractDivisi(flight.name);
+      const tr = document.createElement("tr");
+    
+      // Kolom Divisi
+      if (divisiList[i] !== "") {
+        const tdDivisi = document.createElement("td");
+        tdDivisi.textContent = divisi;
+        tdDivisi.rowSpan = rowspanMap.get(divisi);
+        tr.appendChild(tdDivisi);
+      }
+    
+      // Kolom Nama Lokasi
+      const tdName = document.createElement("td");
+      tdName.textContent = flight.name;
+      tr.appendChild(tdName);
+    
+      // Kolom Tombol
+      const tdBtn = document.createElement("td");
+      tdBtn.innerHTML = `<button class="btn btn-primary btn-sm" onclick="openModal(${i})">Lihat</button>`;
+      tr.appendChild(tdBtn);
+    
+      tableBody.appendChild(tr);
+    }
+
+
+  function openModal(index) {
+    const flight = flights[index];
+    const videoFrame = document.getElementById("modalVideo");
+    const mapContainer = document.getElementById("modalMap");
+  
+    const isVideoAvailable = flight.videoId && !flight.videoId.endsWith(".kml");
+    const isKmlAvailable = flight.kml && flight.kml.trim() !== "";
+  
+    // Tampilkan video jika tersedia
+    if (isVideoAvailable) {
+      videoFrame.src = `https://drive.google.com/file/d/${flight.videoId}/preview`;
+      videoFrame.style.display = "block";
+    } else {
+      videoFrame.src = "";
+      videoFrame.style.display = "none";
+    }
+  
+    // Tampilkan/hilangkan peta dan atur tinggi video
+    if (isKmlAvailable) {
+      mapContainer.style.display = "block";
+      videoFrame.style.height = "50vh";
+  
+      if (!map) {
+        map = L.map("modalMap").setView([-6.2, 106.8], 15);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/' +
+                    'World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          attribution: '',
+          maxZoom: 19
+        }).addTo(map);
+      }
+  
+      if (currentKml) {
+        map.removeLayer(currentKml);
+        currentKml = null;
+      }
+  
+      currentKml = omnivore.kml(flight.kml).addTo(map);
+  
+      modal.show();
+      document.getElementById("flightModal").addEventListener("shown.bs.modal", () => {
+        setTimeout(() => {
+          map.invalidateSize();
+          if (currentKml && currentKml.getBounds) {
+            map.fitBounds(currentKml.getBounds());
+          }
+        }, 300);
+      }, { once: true });
+  
+    } else {
+      mapContainer.style.display = "none";
+      videoFrame.style.height = "100vh"; // Ubah tinggi video jadi penuh
+      modal.show();
+    }
+  }
+</script>
+
+</body>
+</html>
